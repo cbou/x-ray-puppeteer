@@ -1,44 +1,14 @@
 
-# x-ray-phantom
+# x-ray-puppeteer
 
-  phantom driver for [x-ray](https://github.com/lapwinglabs/x-ray).
+  Chromium Puppeteer driver for [x-ray](https://github.com/lapwinglabs/x-ray).
+
+## Why
+XRay is great, but on ajax / JS-heavy pages, it needs to use a more complex driver. The best solution there is `x-ray-phantom` (which, incidentally, doesn't use `phantom` at all, but `nightmarejs`, but `nightmare` is limited in certain environments (plus, puppeteer is basically vanilla chromium, which is great). 
 
 ## Installation
 
-```
-npm install x-ray-phantom
-```
+This is a really simple function i whipped up ad hoc, so I haven't really set up for wider distribution yet.
 
-## Usage
+For now you can either just clone this repo or copy the code in `index.js` into a file in your project
 
-```js
-var phantom = require('x-ray-phantom');
-var Xray = require('x-ray');
-
-var x = Xray()
-  .driver(phantom());
-
-x('http://google.com', 'title')(function(err, str) {
-  if (err) return done(err);
-  assert.equal('Google', str);
-  done();
-})
-```
-
-## API
-
-### phantom([options|fn], [fn])
-
-Initialize the phantom driver with `options` being passed to Nightmare and
-an optional custom `fn` with the signature `function(nightmare, done)`.
-
-## Test
-
-```
-npm install
-make test
-```
-
-## License
-
-MIT
