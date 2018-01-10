@@ -2,91 +2,53 @@
  * Module Dependencies
  */
 
-var debug = require('debug')('x-ray:phantom');
-var normalize = require('normalizeurl');
-var Nightmare = require('nightmare');
-var wrapfn = require('wrap-fn');
+var debug = require('debug')('x-ray:puppeteer');
+var Puppeteer = require('puppeteer');
 
 /**
-* Export `driver`
-*/
-
-module.exports = driver;
-
-/**
-* Initialize the `driver`
-* with the following `options`
-*
-* @param {Object} options
-* @param {Function} fn
-* @return {Function}
-* @api public
-*/
-
-function driver(options, fn) {
-  if ('function' == typeof options) fn = options, options = {};
-  options = options || {};
-  fn = fn || phantom;
-  var nightmare = new Nightmare(options);
-
-
-  return function phantom_driver(ctx, done) {
-    debug('going to %s', ctx.url);
-
-    nightmare
-      .on('error', error)
-      .on('timeout', function(timeout) {
-        return done(new Error(timeout));
-      })
-      .on('resourceReceived', function(resource) {
-        if (normalize(resource.url) == normalize(ctx.url)) {
-          debug('got response from %s: %s', resource.url, resource.status);
-          ctx.status = resource.status;
-        };
-      })
-      .on('urlChanged', function(url) {
-        debug('redirect: %s', url);
-        ctx.url = url;
-      })
-
-    wrapfn(fn, select)(ctx, nightmare);
-
-    function select(err, ret) {
-      if (err) return done(err);
-
-      nightmare
-        .evaluate(function() {
-          return document.documentElement.outerHTML;
-        }, function(body) {
-          ctx.body = body;
-        })
-        .run(function(err) {
-          if (err) return done(err);
-          debug('%s - %s', ctx.url, ctx.status);
-          done(null, ctx);
-        });
-    };
-  }
-}
-
-/**
- * Default phantom driver
- *
- * @param {HTTP Context} ctx
- * @param {Nightmare} nightmare
- * @param {Function} fn
+ * Export `driver`
  */
 
-function phantom(ctx, nightmare) {
-  return nightmare.goto(ctx.url);
-}
-
 /**
-* Phantom errors go here
-*
-* @param {String} msg
-*/
+ * Initialize the `driver`
+ * with the following `options`
+ *
+ * @param {Object} options
+ * @param {Function} fn
+ * @ param {Object} [goto_options] Options that'll pass to Puppeteer's .goto() method.
+ * @ param {String} [waitForSelector]  A css selector that Puppeteer ought to wait for after executing goto()
+ * @return {Function}
+ * @api public
+ */
 
-function error(msg) {
-  debug('client-side javascript error %s', msg);
-}
+const driver = (options, fn, goto_options = {}, waitForSelector) => {
+    // create above returned function's scope so
+    // we re-use the same chromium page each time
+    let page, browser;
+    return fn
+        ? fn(ctx, done)
+        : async (ctx, done) => {
+              if (!browser) browser = await Puppeteer.launch(options);
+              if (!page) page = await browser.newPage();
+              debug('going to %s', ctx.url);
+
+              try {
+                  await page.goto(ctx.url, goto_options);
+                  if (typeof waitForSelector === 'string') {
+                      await page.waitFor(waitForSelector);
+                  }
+                  const html = await page.content();
+                  debug(
+                      'got response from %s, content length: %s',
+                      ctx.url,
+                      (html || '').length
+                  );
+                  ctx.body = html;
+                  done(null, ctx);
+              } catch (err) {
+                  debug('Puppeteer error', err);
+                  if (err) return done(err);
+              }
+          };
+};
+module.exports = driver;
