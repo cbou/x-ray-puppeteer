@@ -21,10 +21,20 @@ var Puppeteer = require('puppeteer');
  * @api public
  */
 
-const driver = (options, fn, goto_options = {}, waitForSelector) => {
+const driver = (options, fn, goto_options = {}, waitForSelector, closeBrowserPromise) => {
     // create above returned function's scope so
     // we re-use the same chromium page each time
     let page, browser;
+    
+    //console.log(closePromise);
+    if (closeBrowserPromise) {
+        closeBrowserPromise.then(function() {
+            if (browser) {
+                browser.close();
+            }
+        });
+    }
+    
     return fn
         ? fn(ctx, done)
         : async (ctx, done) => {
